@@ -9,9 +9,10 @@ A versatile Python-based video downloader that supports YouTube, Vimeo, and many
 - 📊 Choose video quality (best, worst, or specific resolutions)
 - 📋 List available formats for any video
 - 📂 Playlist support and duplicate avoidance via download archive
-- 📝 Better filenames: `%(uploader)s/%(upload_date)s - %(title)`.200B` [%(id)]`
-- 🧩 Subtitles download and optional embedding
+- 📝 Better filenames: `%(uploader)s/%(upload_date)s - %(title).200B [%(id)]`
+- 🧩 Subtitles download (manual or auto) and optional embedding; choose format (SRT/VTT/ASS)
 - 🖼️ Thumbnails write and optional embedding
+- 🎛️ Media polish: remux containers, `--merge-output-format`, MP4 `--faststart`, audio loudness normalization
 - 🍪 Cookies from browser for age/region-restricted content
 - 🌐 Proxy, rate limit, and concurrent fragment downloads
 - 🧾 Batch file support (many URLs)
@@ -71,11 +72,20 @@ python video_downloader.py URL \
   --filename-template '%(uploader)s/%(upload_date>%Y-%m-%d)s - %(title).200B [%(id)s].%(ext)s' \
   --archive archive.txt
 
-# Download subtitles (English preferred) and embed them
-python video_downloader.py URL --subtitles --sub-langs en,en-US --embed-subs
+# Subtitles: prefer manual subs, fall back to auto, embed into output, in SRT
+python video_downloader.py URL --subtitles --auto-subs --sub-langs en,en-US --sub-format srt --embed-subs
 
 # Write and embed thumbnail into the media
 python video_downloader.py URL --write-thumbnail --embed-thumbnail
+
+# Media polish: remux to mp4 container and optimize for streaming
+python video_downloader.py URL --remux-to mp4 --faststart
+
+# Merge to MKV when combining separate video/audio streams
+python video_downloader.py URL --merge-output-format mkv
+
+# Audio-only with loudness normalization
+python video_downloader.py URL -a -f m4a --audio-normalize
 
 # Use cookies from your browser for restricted videos
 python video_downloader.py URL --cookies-from-browser chrome
@@ -111,9 +121,16 @@ optional arguments:
                                     Audio format when using --audio (default: mp3)
   -v {mp4,webm,mkv}, --video-format {mp4,webm,mkv}
                                     Video format (default: mp4)
+  --merge-output-format {mp4,mkv,webm}
+                                    Container for merging separate streams
+  --remux-to {mp4,mkv,webm}         Remux output container without re-encoding
+  --faststart                       Optimize MP4 for streaming (moov atom at start)
+  --audio-normalize                 Normalize audio loudness (EBU R128)
   --subtitles                       Download subtitles (if available)
   --embed-subs                      Embed subtitles into video
   --sub-langs SUB_LANGS             Comma-separated subtitle languages (e.g., "en,en-US")
+  --sub-format {srt,vtt,ass}        Subtitle file format
+  --auto-subs                       Allow auto-generated subtitles when needed
   --write-thumbnail                 Write thumbnail file
   --embed-thumbnail                 Embed thumbnail into media file
   --cookies-from-browser BROWSER    Load cookies from browser (chrome, brave, firefox)

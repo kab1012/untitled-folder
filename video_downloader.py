@@ -96,9 +96,15 @@ class VideoDownloader:
         download_archive: Optional[Path] = None,
         retries: int = 10,
         fragment_retries: int = 10,
+        merge_output_format: Optional[str] = None,
+        remux_to: Optional[str] = None,
+        faststart: bool = False,
+        audio_normalize: bool = False,
         writesubtitles: bool = False,
         embedsubtitles: bool = False,
         subtitleslangs: Optional[str] = None,
+        subtitlesformat: Optional[str] = None,
+        write_automatic_sub: bool = False,
         cookies_from_browser: Optional[str] = None,
         proxy: Optional[str] = None,
         rate_limit: Optional[str] = None,
@@ -161,6 +167,8 @@ class VideoDownloader:
         else:
             # default archive file inside output dir
             ydl_opts['download_archive'] = str(self.output_dir / 'archive.txt')
+        if merge_output_format:
+            ydl_opts['merge_output_format'] = merge_output_format
         if proxy:
             ydl_opts['proxy'] = proxy
         if rate_limit:
@@ -183,6 +191,10 @@ class VideoDownloader:
                 'preferredcodec': audio_format,
                 'preferredquality': '192',
             }]
+            if audio_normalize:
+                # Apply EBU R128 loudness normalization
+                ydl_opts.setdefault('postprocessor_args', [])
+                ydl_opts['postprocessor_args'] += ['-af', 'loudnorm=I=-16:LRA=11:TP=-1.5']
             if write_thumbnail:
                 ydl_opts['writethumbnail'] = True
             if embed_thumbnail:
@@ -201,14 +213,25 @@ class VideoDownloader:
             postprocessors = [{'key': 'FFmpegMetadata'}]
             if writesubtitles:
                 ydl_opts['writesubtitles'] = True
+                if write_automatic_sub:
+                    ydl_opts['writeautomaticsub'] = True
                 if subtitleslangs:
                     ydl_opts['subtitleslangs'] = [lang.strip() for lang in subtitleslangs.split(',')]
+                if subtitlesformat:
+                    ydl_opts['subtitlesformat'] = subtitlesformat
                 if embedsubtitles:
                     postprocessors.append({'key': 'FFmpegEmbedSubtitle'})
             if write_thumbnail:
                 ydl_opts['writethumbnail'] = True
             if embed_thumbnail:
                 postprocessors.append({'key': 'EmbedThumbnail'})
+            if remux_to:
+                # Remux container without re-encoding
+                postprocessors.append({'key': 'FFmpegVideoRemuxer', 'preferedformat': remux_to})
+            if faststart:
+                # Place moov atom at beginning for streaming
+                ydl_opts.setdefault('postprocessor_args', [])
+                ydl_opts['postprocessor_args'] += ['-movflags', '+faststart']
             ydl_opts['postprocessors'] = postprocessors
         else:
             # Download both
@@ -320,6 +343,28 @@ Examples:
         help='Video format (default: mp4)'
     )
     parser.add_argument(
+        '--merge-output-format',
+        default=None,
+        choices=[None, 'mp4', 'mkv', 'webm'],
+        help='Container to merge into when combining streams'
+    )
+    parser.add_argument(
+        '--remux-to',
+        default=None,
+        choices=[None, 'mp4', 'mkv', 'webm'],
+        help='Remux output container without re-encoding'
+    )
+    parser.add_argument(
+        '--faststart',
+        action='store_true',
+        help='Optimize MP4 for streaming by moving moov atom to start'
+    )
+    parser.add_argument(
+        '--audio-normalize',
+        action='store_true',
+        help='Normalize audio loudness (EBU R128)'
+    )
+    parser.add_argument(
         '--subtitles',
         action='store_true',
         help='Download subtitles (if available)'
@@ -333,6 +378,17 @@ Examples:
         '--sub-langs',
         default=None,
         help='Comma-separated subtitle languages, e.g., "en,en-US"'
+    )
+    parser.add_argument(
+        '--sub-format',
+        default=None,
+        choices=[None, 'srt', 'vtt', 'ass'],
+        help='Subtitle file format'
+    )
+    parser.add_argument(
+        '--auto-subs',
+        action='store_true',
+        help='Allow auto-generated subtitles when manual subs are unavailable'
     )
     parser.add_argument(
         '--write-thumbnail',
@@ -420,9 +476,15 @@ Examples:
                 video_format=args.video_format,
                 outtmpl=args.filename_template,
                 download_archive=archive_path,
+                merge_output_format=args.merge_output_format,
+                remux_to=args.remux_to,
+                faststart=args.faststart,
+                audio_normalize=args.audio_normalize,
                 writesubtitles=args.subtitles,
                 embedsubtitles=args.embed_subs,
                 subtitleslangs=args.sub_langs,
+                subtitlesformat=args.sub_format,
+                write_automatic_sub=args.auto_subs,
                 cookies_from_browser=args.cookies_from_browser,
                 proxy=args.proxy,
                 rate_limit=args.rate_limit,
@@ -463,9 +525,15 @@ Examples:
                 quality="best",
                 outtmpl=args.filename_template,
                 download_archive=archive_path,
+                merge_output_format=args.merge_output_format,
+                remux_to=args.remux_to,
+                faststart=args.faststart,
+                audio_normalize=args.audio_normalize,
                 writesubtitles=args.subtitles,
                 embedsubtitles=args.embed_subs,
                 subtitleslangs=args.sub_langs,
+                subtitlesformat=args.sub_format,
+                write_automatic_sub=args.auto_subs,
                 cookies_from_browser=args.cookies_from_browser,
                 proxy=args.proxy,
                 rate_limit=args.rate_limit,
@@ -481,9 +549,15 @@ Examples:
                 quality=quality,
                 outtmpl=args.filename_template,
                 download_archive=archive_path,
+                merge_output_format=args.merge_output_format,
+                remux_to=args.remux_to,
+                faststart=args.faststart,
+                audio_normalize=args.audio_normalize,
                 writesubtitles=args.subtitles,
                 embedsubtitles=args.embed_subs,
                 subtitleslangs=args.sub_langs,
+                subtitlesformat=args.sub_format,
+                write_automatic_sub=args.auto_subs,
                 cookies_from_browser=args.cookies_from_browser,
                 proxy=args.proxy,
                 rate_limit=args.rate_limit,
@@ -500,9 +574,12 @@ Examples:
                 audio_format=audio_format,
                 outtmpl=args.filename_template,
                 download_archive=archive_path,
+                audio_normalize=args.audio_normalize,
                 writesubtitles=args.subtitles,
                 embedsubtitles=args.embed_subs,
                 subtitleslangs=args.sub_langs,
+                subtitlesformat=args.sub_format,
+                write_automatic_sub=args.auto_subs,
                 cookies_from_browser=args.cookies_from_browser,
                 proxy=args.proxy,
                 rate_limit=args.rate_limit,
@@ -530,9 +607,15 @@ Examples:
                 video_format=args.video_format,
                 outtmpl=args.filename_template,
                 download_archive=archive_path,
+                merge_output_format=args.merge_output_format,
+                remux_to=args.remux_to,
+                faststart=args.faststart,
+                audio_normalize=args.audio_normalize,
                 writesubtitles=args.subtitles,
                 embedsubtitles=args.embed_subs,
                 subtitleslangs=args.sub_langs,
+                subtitlesformat=args.sub_format,
+                write_automatic_sub=args.auto_subs,
                 cookies_from_browser=args.cookies_from_browser,
                 proxy=args.proxy,
                 rate_limit=args.rate_limit,
