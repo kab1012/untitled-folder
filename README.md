@@ -8,6 +8,13 @@ A versatile Python-based video downloader that supports YouTube, Vimeo, and many
 - 🎵 Extract audio only (MP3, M4A, Opus, WAV)
 - 📊 Choose video quality (best, worst, or specific resolutions)
 - 📋 List available formats for any video
+- 📂 Playlist support and duplicate avoidance via download archive
+- 📝 Better filenames: `%(uploader)s/%(upload_date)s - %(title)`.200B` [%(id)]`
+- 🧩 Subtitles download and optional embedding
+- 🖼️ Thumbnails write and optional embedding
+- 🍪 Cookies from browser for age/region-restricted content
+- 🌐 Proxy, rate limit, and concurrent fragment downloads
+- 🧾 Batch file support (many URLs)
 - 🎨 Beautiful CLI interface with progress bars
 - 🔄 Interactive mode for easy usage
 - 📁 Organized downloads with custom output directory
@@ -33,7 +40,7 @@ A versatile Python-based video downloader that supports YouTube, Vimeo, and many
      ```
    
    - **Windows:**
-     Download from [FFmpeg website](https://ffmpeg.org/download.html) and add to PATH
+     Download from `https://ffmpeg.org/download.html` and add to PATH
 
 ## Usage
 
@@ -56,44 +63,67 @@ python video_downloader.py https://www.youtube.com/watch?v=VIDEO_ID --audio --fo
 python video_downloader.py https://www.youtube.com/watch?v=VIDEO_ID --list-formats
 ```
 
-### Command-Line Options
+### Advanced Examples
+
+```bash
+# Use a nicer filename template and archive to skip already-downloaded videos
+python video_downloader.py URL \
+  --filename-template '%(uploader)s/%(upload_date>%Y-%m-%d)s - %(title).200B [%(id)s].%(ext)s' \
+  --archive archive.txt
+
+# Download subtitles (English preferred) and embed them
+python video_downloader.py URL --subtitles --sub-langs en,en-US --embed-subs
+
+# Write and embed thumbnail into the media
+python video_downloader.py URL --write-thumbnail --embed-thumbnail
+
+# Use cookies from your browser for restricted videos
+python video_downloader.py URL --cookies-from-browser chrome
+
+# Limit download rate and set a proxy
+python video_downloader.py URL --rate-limit 2M --proxy http://127.0.0.1:8080
+
+# Speed up HLS/fragmented downloads
+python video_downloader.py URL --concurrent-fragments 8
+
+# Remove SponsorBlock segments (use with care)
+python video_downloader.py URL --sponsorblock-remove sponsor,intro,outro
+
+# Batch download from a file of URLs (one per line, '#' for comments)
+python video_downloader.py --batch-file urls.txt
+```
+
+### Command-Line Options (excerpt)
 
 ```
 positional arguments:
-  url                   URL of the video to download
+  url                               URL of the video to download (or playlist URL)
 
 optional arguments:
-  -h, --help            show this help message and exit
-  -o OUTPUT, --output OUTPUT
-                        Output directory (default: downloads)
+  -h, --help                        show this help message and exit
+  -o OUTPUT, --output OUTPUT        Output directory (default: downloads)
+  --filename-template TEMPLATE      Output filename template (yt-dlp syntax)
+  --archive ARCHIVE                 Download archive file path (avoid duplicates)
   -q {best,worst,720p,1080p,480p,360p}, --quality {best,worst,720p,1080p,480p,360p}
-                        Video quality (default: best)
-  -a, --audio           Download audio only
+                                    Video quality (default: best)
+  -a, --audio                       Download audio only
   -f {mp3,m4a,opus,wav}, --format {mp3,m4a,opus,wav}
-                        Audio format when using --audio (default: mp3)
+                                    Audio format when using --audio (default: mp3)
   -v {mp4,webm,mkv}, --video-format {mp4,webm,mkv}
-                        Video format (default: mp4)
-  -l, --list-formats    List available formats for the video
-  --interactive         Interactive mode
-```
-
-### Examples
-
-```bash
-# Download best quality video as MP4
-python video_downloader.py "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-
-# Download 1080p video
-python video_downloader.py "https://www.youtube.com/watch?v=dQw4w9WgXcQ" -q 1080p
-
-# Download audio as MP3
-python video_downloader.py "https://www.youtube.com/watch?v=dQw4w9WgXcQ" -a -f mp3
-
-# Download to custom directory
-python video_downloader.py "https://www.youtube.com/watch?v=dQw4w9WgXcQ" -o ~/Videos
-
-# Interactive mode
-python video_downloader.py --interactive
+                                    Video format (default: mp4)
+  --subtitles                       Download subtitles (if available)
+  --embed-subs                      Embed subtitles into video
+  --sub-langs SUB_LANGS             Comma-separated subtitle languages (e.g., "en,en-US")
+  --write-thumbnail                 Write thumbnail file
+  --embed-thumbnail                 Embed thumbnail into media file
+  --cookies-from-browser BROWSER    Load cookies from browser (chrome, brave, firefox)
+  --proxy PROXY                     HTTP(S) proxy URL (e.g., http://127.0.0.1:8080)
+  --rate-limit RATE                 Max download rate, e.g., 2M or 500K
+  --concurrent-fragments N          Number of fragments to download concurrently
+  --sponsorblock-remove CATS        Comma-separated SponsorBlock categories to remove
+  --batch-file FILE                 File containing URLs (one per line)
+  -l, --list-formats                List available formats for the video
+  --interactive                     Interactive mode
 ```
 
 ## Supported Platforms
@@ -115,6 +145,11 @@ This downloader supports all platforms that `yt-dlp` supports, including:
 - yt-dlp
 - rich (for beautiful CLI)
 - FFmpeg (for audio extraction and format conversion)
+
+## Notes
+
+- An `archive.txt` file is kept in the output directory to skip downloads already completed.
+- Logs are written to `downloads/downloader.log` by default.
 
 ## License
 
